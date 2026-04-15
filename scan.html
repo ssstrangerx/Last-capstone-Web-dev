@@ -1,0 +1,69 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Scan QR | SUMS</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 600px;
+        margin: 50px auto;
+        padding: 20px;
+        text-align: center;
+      }
+      .success {
+        color: green;
+      }
+      .error {
+        color: red;
+      }
+      .warning {
+        color: orange;
+      }
+      .info {
+        color: blue;
+      }
+      p {
+        margin: 10px 0;
+      }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+  </head>
+
+  <body>
+    <h2 id="status">📷 Processing Attendance...</h2>
+    <p id="message"></p>
+
+    <script>
+      async function markAttendance() {
+        const token = new URLSearchParams(window.location.search).get("token");
+        if (!token) return;
+
+        const { data: session } = await client
+          .from("attendance_sessions")
+          .select("*")
+          .eq("otp_token", token)
+          .maybeSingle();
+
+        if (!session) return;
+
+        const { data: userData } = await client.auth.getUser();
+        const user = userData.user;
+        if (!user) return;
+
+        await client.from("attendance").insert([
+          {
+            student_id: user.id,
+            session_id: session.id,
+            status: true,
+            scanned_at: new Date().toISOString(),
+          },
+        ]);
+
+        alert("Attendance Marked");
+      }
+
+      markAttendance();
+    </script>
+  </body>
+</html>
