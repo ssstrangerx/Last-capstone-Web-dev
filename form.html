@@ -100,17 +100,18 @@
           // ⏳ WAIT longer to avoid FK error (Supabase needs time to commit)
           await new Promise((resolve) => setTimeout(resolve, 1000));
 
-          // STEP 2: INSERT PROFILE (use insert, not upsert)
+          // STEP 2: INSERT PROFILE (matching ACTUAL database schema)
+          // Based on INSERT statement: id, email, full_name, role, roll_number, section_id, course_name, ...
           const { error: profileError } = await client.from("profiles").insert([
             {
               id: data.user.id,
               email,
               full_name: fullName,
               role: "student",
-              roll_number: rollNumber, // ← ADD THIS
-              course_name: courseName, // ← ADD THIS
-              year: parseInt(year), // ← ADD THIS
-              semester: parseInt(semester), // ← ADD THIS
+              roll_number: rollNumber,    // ✓ EXISTS
+              course_name: courseName,    // ✓ EXISTS (was missing before!)
+              section_id: null,           // ✓ EXISTS - leave null for now
+              // NOTE: year and semester don't exist in DB schema - removed them!
             },
           ]);
 
