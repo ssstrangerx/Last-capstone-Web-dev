@@ -193,6 +193,19 @@
           alert("Scan Error: " + err.message);
         }
       }
+
+      async function logout() {
+        await client.auth.signOut();
+        window.location.href = "index.html";
+      }
+
+      function toggleSubmenu(element) {
+        const submenu = element.querySelector(".submenu");
+        if (submenu) {
+          submenu.style.display =
+            submenu.style.display === "block" ? "none" : "block";
+        }
+      }
     </script>
   </body>
 </html>

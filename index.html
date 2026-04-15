@@ -64,47 +64,52 @@
     </form>
 
     <script>
-      document
-        .getElementById("loginForm")
-        .addEventListener("submit", async (e) => {
-          e.preventDefault();
+            document
+              .getElementById("loginForm")
+              .addEventListener("submit", async (e) => {
+                e.preventDefault();
 
-          const email = document.getElementById("email").value;
-          const password = document.getElementById("password").value;
-          const selectedRole = document.querySelector(
-            'input[name="role"]:checked',
-          ).value;
+                const email = document.getElementById("email").value;
+                const password = document.getElementById("password").value;
+                const selectedRole = document.querySelector(
+                  'input[name="role"]:checked',
+                ).value;
+                      const { data, error } = await client.auth.signInWithPassword({
+          email,
+          password,
+      });
 
-          // LOGIN
-          const { data, error } = await client.auth.signInWithPassword({
-            email,
-            password,
-          });
+      if (error) {
+          alert("Login failed: Check your email/password");
+          return;
+      }
 
-          if (error) {
-            alert("Login failed");
-            return;
-          }
+      // 1. FETCH PROFILE
+      const { data: profile, error: profileError } = await client
+          .from("profiles")
+          .select("*")
+          .eq("id", data.user.id)
+          .maybeSingle();
 
-          // FETCH PROFILE USING ID (SAFE)
-          const { data: profile } = await client
-            .from("profiles")
-            .select("*")
-            .eq("id", data.user.id)
-            .maybeSingle();
+      // 2. THE CHECK
+      if (!profile) {
+          alert("Auth account exists, but no profile found! Please re-register or contact admin.");
+          return;
+      }
 
-          if (!profile) {
-            alert("Please register first");
-            return;
-          }
+      // 3. MATCH ROLE TO RADIO BUTTON
+      // (Important: Convert both to lowercase to avoid "Student" vs "student" errors)
+      if (profile.role.toLowerCase() !== selectedRole.toLowerCase()) {
+          alert(`Access Denied: You are registered as a ${profile.role}, but tried to login as a ${selectedRole}.`);
+          return;
+      }
 
-          // REDIRECT
-          if (profile.role === "student") {
-            window.location.href = "Students.html";
-          } else {
-            window.location.href = "teacher.html";
-          }
-        });
+      // 4. REDIRECT
+      if (profile.role === "student") {
+          window.location.href = "Students.html";
+      } else if (profile.role === "teacher") {
+          window.location.href = "teacher.html";
+      }
     </script>
   </body>
 </html>

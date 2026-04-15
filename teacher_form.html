@@ -97,15 +97,14 @@
           // ⏳ WAIT longer to avoid FK error (Supabase needs time to commit)
           await new Promise((resolve) => setTimeout(resolve, 1000));
 
-          // This replaces the STEP 2: INSERT PROFILE block in your forms
           const { error: profileError } = await client.from("profiles").insert([
             {
               id: data.user.id,
               email: email,
               full_name: fullName,
-              role: "teacher", // or "student" for form.html
-              employee_id: employeeId, // only for teacher
-              designation: designation, // only for teacher
+              role: "teacher",
+              employee_id: employeeId,
+              designation: designation,
             },
           ]);
 
