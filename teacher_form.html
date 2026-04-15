@@ -53,12 +53,27 @@
     <script>
       console.log("Teacher registration script loaded");
 
+      // Check if client is defined
+      if (typeof client === "undefined") {
+        console.error(
+          "❌ CRITICAL: client is not defined! config.js not loaded properly",
+        );
+        alert("ERROR: Supabase not initialized. Check config.js");
+      }
+
       document
         .getElementById("teacherRegForm")
         .addEventListener("submit", async (e) => {
           e.preventDefault();
 
           console.log("🚀 Teacher form submitted");
+
+          // Verify client is defined before proceeding
+          if (typeof client === "undefined") {
+            console.error("❌ client is undefined");
+            alert("ERROR: Supabase client not initialized");
+            return;
+          }
 
           const email = document.getElementById("email").value;
           const password = document.getElementById("password").value;
@@ -73,54 +88,69 @@
 
           console.log("📦 Data:", { email, fullName, employeeId, designation });
 
-          // STEP 1: SIGN UP
-          const { data, error } = await client.auth.signUp({
-            email,
-            password,
-          });
+          try {
+            // STEP 1: SIGN UP
+            console.log("🔐 Creating auth account...");
+            const { data, error } = await client.auth.signUp({
+              email,
+              password,
+            });
 
-          if (error) {
-            console.error("❌ Auth Error:", error);
-            alert("Registration failed: " + error.message);
-            return;
+            if (error) {
+              console.error("❌ Auth Error:", error);
+              alert("Registration failed: " + error.message);
+              return;
+            }
+
+            console.log("✅ Auth account created");
+
+            // 🚨 IMPORTANT CHECK
+            if (!data.user || !data.user.id) {
+              alert("User not properly created in Auth");
+              console.error("User missing:", data);
+              return;
+            }
+
+            console.log("✅ User ID:", data.user.id);
+
+            // ⏳ WAIT longer to avoid FK error (Supabase needs time to commit)
+            console.log("⏳ Waiting 1.5 seconds for auth to fully commit...");
+            await new Promise((resolve) => setTimeout(resolve, 1500));
+
+            // STEP 2: INSERT PROFILE
+            console.log("💾 Inserting teacher profile...");
+            const { error: profileError } = await client
+              .from("profiles")
+              .insert([
+                {
+                  id: data.user.id,
+                  email: email,
+                  full_name: fullName,
+                  role: "teacher",
+                  employee_id: employeeId,
+                  designation: designation,
+                },
+              ]);
+
+            if (profileError) {
+              console.error("❌ Insert Error:", profileError);
+              alert("Profile save failed: " + profileError.message);
+              return;
+            }
+
+            console.log("✅ Teacher profile inserted successfully");
+            alert(
+              "✅ Teacher Registered Successfully! Redirecting to login...",
+            );
+
+            // Redirect to login after 2 seconds
+            setTimeout(() => {
+              window.location.href = "index.html";
+            }, 2000);
+          } catch (err) {
+            console.error("❌ Unexpected error:", err);
+            alert("Error: " + err.message);
           }
-
-          console.log("✅ Auth response:", data);
-
-          // 🚨 IMPORTANT CHECK
-          if (!data.user || !data.user.id) {
-            alert("User not properly created in Auth");
-            console.error("User missing:", data);
-            return;
-          }
-
-          // ⏳ WAIT longer to avoid FK error (Supabase needs time to commit)
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-
-          const { error: profileError } = await client.from("profiles").insert([
-            {
-              id: data.user.id,
-              email: email,
-              full_name: fullName,
-              role: "teacher",
-              employee_id: employeeId,
-              designation: designation,
-            },
-          ]);
-
-          if (profileError) {
-            console.error("❌ Insert Error:", profileError);
-            alert("Profile save failed: " + profileError.message);
-            return;
-          }
-
-          console.log("✅ Teacher profile inserted");
-          alert("✅ Teacher Registered Successfully! Redirecting to login...");
-
-          // Redirect to login after 2 seconds
-          setTimeout(() => {
-            window.location.href = "index.html";
-          }, 2000);
         });
     </script>
   </body>
