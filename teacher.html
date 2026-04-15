@@ -1,193 +1,423 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Teacher Dashboard | SUMS</title>
-    <link rel="stylesheet" href="teacher_style.css" />
-    <link rel="shortcut icon" href="logo.jpg" type="image/jpg" />
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="config.js"></script>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Teacher Dashboard - SUMS</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <style>
+    .countdown-timer {
+      display: inline-block;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: 600;
+      margin: 10px 0;
+      font-size: 14px;
+    }
 
-    <!-- QR Library -->
-    <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
-  </head>
-  <body>
-    <header class="navbar">
-      <div class="logo">
-        <img src="logo.jpg" alt="KRMU" class="logo-img" />
-        <span>K.R. Mangalam University</span>
-      </div>
-      <nav>
-        <a href="#">Dashboard</a>
-        <a href="#">Profile</a>
-        <a href="#" onclick="logout()">Logout</a>
-      </nav>
-    </header>
+    .all-students-section {
+      margin-top: 25px;
+      padding-top: 20px;
+      border-top: 2px solid #f0f0f0;
+    }
 
-    <div class="container">
-      <aside class="sidebar">
-        <h3>Menu</h3>
-        <ul>
-          <li class="active">📊 Dashboard</li>
-          <li>🕐 Timetable</li>
+    .all-students-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 12px;
+      margin-top: 15px;
+    }
 
-          <!-- Mark Attendance with sub-options -->
-          <li onclick="openAttendance()" id="attendanceMenu">
-            📷 Take Attendance
-          </li>
+    .student-card {
+      background: white;
+      padding: 14px;
+      border-radius: 6px;
+      border-left: 3px solid #ddd;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
 
-          <li>📚 My Subjects</li>
+    .student-card.marked {
+      background: #d4edda;
+      border-left-color: #28a745;
+    }
 
-          <!-- Internal Assessment with sub-options -->
-          <li class="menu-parent" onclick="toggleSubmenu(this)">
-            📝 Internal Assessment ▾
-            <ul class="submenu">
-              <li>📋 Midterm (20 marks)</li>
-              <li>📋 Internals (30 marks)</li>
-            </ul>
-          </li>
+    .student-card.not-marked {
+      background: #fff3cd;
+      border-left-color: #ffc107;
+    }
 
-          <!-- Send Notices -->
-          <li>📢 Send Notices</li>
-          <li>📆 Academic Calendar</li>
-          <li>📨 Grievances / Complaints</li>
-        </ul>
-      </aside>
+    .student-name {
+      font-weight: 500;
+      color: #333;
+      font-size: 14px;
+    }
 
-      <main class="content">
+    .student-status {
+      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      background: rgba(0, 0, 0, 0.1);
+      color: #666;
+    }
+
+    .student-status.marked {
+      background: #28a745;
+      color: white;
+    }
+  </style>
+</head>
+<body class="dashboard">
+  <div class="navbar">
+    <div class="logo">🎓 SUMS - Teacher Dashboard</div>
+    <nav>
+      <a href="#" onclick="logout()">Logout</a>
+    </nav>
+  </div>
+
+  <div class="dashboard-container">
+    <aside class="sidebar">
+      <h3>Menu</h3>
+      <ul>
+        <li class="active" onclick="showSection('dashboard')">📊 Dashboard</li>
+        <li onclick="showSection('timetable')">📅 Timetable</li>
+        <li onclick="showSection('attendance')">📷 Take Attendance</li>
+        <li onclick="showSection('students')">👨‍🎓 Students</li>
+        <li onclick="showSection('notices')">📢 Notices</li>
+      </ul>
+    </aside>
+
+    <div class="content">
+      <!-- Dashboard Section -->
+      <div id="dashboard-section" class="section-content">
         <h1>Welcome, Professor 👋</h1>
-        <p class="subtitle">Here's your teaching overview for today</p>
+        <p class="subtitle">Here's your teaching overview</p>
 
         <div class="cards">
           <div class="card">
-            <h2>📚 Total Subjects</h2>
-            <p class="big">4</p>
+            <h2>📚 Subjects</h2>
+            <p class="big" id="subjectCount">0</p>
             <span>Assigned this semester</span>
           </div>
 
           <div class="card">
             <h2>👨‍🎓 Total Students</h2>
-            <p class="big">180</p>
+            <p class="big" id="studentCount">0</p>
             <span>Across all classes</span>
           </div>
 
           <div class="card">
             <h2>🕐 Classes Today</h2>
-            <p class="big">3</p>
+            <p class="big" id="classCount">0</p>
             <span>Scheduled lectures</span>
           </div>
 
           <div class="card">
-            <h2>📨 Pending Grievances</h2>
-            <p class="big orange">2</p>
-            <span>Need your response</span>
+            <h2>✅ Attendance Marked</h2>
+            <p class="big" id="attendanceCount">0</p>
+            <span>Today</span>
           </div>
         </div>
+      </div>
 
-        <div class="section">
-          <h2>📅 Today's Classes</h2>
-          <ul id="timetableList">
-            <li>Loading timetable...</li>
-          </ul>
-        </div>
+      <!-- Timetable Section -->
+      <div id="timetable-section" class="section-content" style="display: none">
+        <h1>📅 Your Timetable</h1>
+        <table class="timetable">
+          <thead>
+            <tr>
+              <th>Day</th>
+              <th>Subject</th>
+              <th>Section</th>
+              <th>Time</th>
+              <th>Room</th>
+            </tr>
+          </thead>
+          <tbody id="timetableBody">
+            <tr>
+              <td colspan="5" style="text-align: center; color: #999">Loading timetable...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
-        <div class="section">
-          <h2>⚡ Quick Actions</h2>
-          <div class="actions">
-            <button>📝 Upload Marks</button>
-            <button>📢 Create Notice</button>
-            <button>📋 Internal Assessment</button>
-          </div>
-        </div>
-
-        <div class="section">
-          <h2>📚 My Subjects</h2>
-          <ul id="subjectsList">
-            <li>Loading subjects...</li>
-          </ul>
-        </div>
-        <div class="section" id="attendanceSection" style="display: none">
-          <h2>📷 Live Attendance</h2>
-
-          <p style="color: #666; font-size: 14px">
-            🟢 QR refreshes every 2 seconds
-          </p>
-
-          <!-- QR -->
-          <canvas id="qrCanvas"></canvas>
-
-          <h3 style="margin-top: 20px">Student List (Click to toggle)</h3>
-
-          <div
-            id="studentList"
-            style="
-              max-height: 400px;
-              overflow-y: auto;
-              border: 1px solid #ddd;
-              padding: 10px;
-              border-radius: 5px;
-            "
-          >
-            Loading students...
+      <!-- Attendance Section -->
+      <div id="attendance-section" class="section-content" style="display: none">
+        <div class="qr-container">
+          <h1>📷 Live Attendance - QR Code Generator</h1>
+          <p class="scanner-status">🟢 QR refreshes every 2 seconds</p>
+          <canvas id="qrCanvas" width="300" height="300"></canvas>
+          
+          <div style="margin: 20px 0;">
+            <p id="tokenDisplay" style="color: #667eea; font-weight: 600; font-size: 16px;">Token: -</p>
+            <div id="countdownTimer" class="countdown-timer">Expires in: 8s</div>
           </div>
 
-          <button onclick="submitAttendance()" style="margin-top: 15px">
-            ✅ Submit & Close
-          </button>
+          <button onclick="startQR()">Start Attendance Session</button>
+          <button onclick="stopQR()" class="btn-secondary">Stop Session</button>
+
+          <!-- Students Section within Attendance -->
+          <div class="all-students-section">
+            <h3>📚 All Registered Students</h3>
+            <p style="color: #666; font-size: 13px; margin-bottom: 15px;">
+              ✅ Green = Attendance marked | ⚠️ Yellow = Not marked yet
+            </p>
+            <div id="allStudentsList" class="all-students-grid">
+              <p style="color: #999; grid-column: 1/-1;">Loading students...</p>
+            </div>
+          </div>
         </div>
-      </main>
+      </div>
+
+      <!-- Students Section (Attended Only) -->
+      <div id="students-section" class="section-content" style="display: none">
+        <h1>👨‍🎓 Students Who Attended</h1>
+        <div id="studentList" class="student-list">
+          <p style="color: #999">No attendance marked yet</p>
+        </div>
+      </div>
+
+      <!-- Notices Section -->
+      <div id="notices-section" class="section-content" style="display: none">
+        <h1>📢 Latest Notices</h1>
+        <div id="noticesList" style="display: flex; flex-direction: column; gap: 15px">
+          <p style="color: #999">Loading notices...</p>
+        </div>
+      </div>
     </div>
-    <script>
-      async function loadRealStudents() {
-        const container = document.getElementById("studentList");
+  </div>
 
-        try {
-          const { data, error } = await client
-            .from("profiles")
-            .select("id, full_name")
-            .eq("role", "student");
+  <script>
+    let qrInterval = null;
+    let countdownInterval = null;
+    let teacherProfile = null;
+    let allStudents = [];
+    let markedStudentIds = new Set();
 
-          if (error) {
-            console.error("Error loading students:", error);
-            container.innerHTML = `<p style="color: red;">Error loading students</p>`;
-            return;
-          }
-
-          if (!data || data.length === 0) {
-            container.innerHTML = `<p>No students registered yet</p>`;
-            return;
-          }
-
-          container.innerHTML = "";
-
-          data.forEach((s) => {
-            container.innerHTML += `<div>${s.full_name}</div>`;
-          });
-        } catch (err) {
-          console.error("Exception in loadRealStudents:", err);
-          container.innerHTML = `<p style="color: red;">Error loading students: ${err.message}</p>`;
+    // Load teacher data on page load
+    async function loadTeacherData() {
+      try {
+        const { data: userData } = await client.auth.getUser();
+        if (!userData.user) {
+          window.location.href = "index.html";
+          return;
         }
+
+        // Fetch teacher profile
+        const { data: profile } = await client
+          .from("profiles")
+          .select("*")
+          .eq("id", userData.user.id)
+          .single();
+
+        teacherProfile = profile;
+        console.log("✅ Teacher profile loaded:", profile);
+
+        // Load timetable
+        loadTimetable(userData.user.id);
+
+        // Load notices
+        loadNotices();
+
+        // Count total students
+        countTotalStudents();
+
+        // Load all students
+        loadAllStudents();
+      } catch (err) {
+        console.error("Error loading teacher data:", err);
+      }
+    }
+
+    // Load teacher's timetable
+    async function loadTimetable(teacherId) {
+      try {
+        const { data: timetable } = await client
+          .from("timetable")
+          .select("id, day_of_week, start_time, end_time, room_number, subjects(name), sections(name)")
+          .eq("teacher_id", teacherId)
+          .order("day_of_week");
+
+        const tbody = document.getElementById("timetableBody");
+        tbody.innerHTML = "";
+
+        if (!timetable || timetable.length === 0) {
+          tbody.innerHTML =
+            '<tr><td colspan="5" style="text-align: center; color: #999">No timetable assigned</td></tr>';
+          document.getElementById("subjectCount").innerText = "0";
+          return;
+        }
+
+        const dayOrder = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+        timetable.sort((a, b) => dayOrder.indexOf(a.day_of_week) - dayOrder.indexOf(b.day_of_week));
+
+        timetable.forEach((slot) => {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${slot.day_of_week}</td>
+            <td>${slot.subjects?.name || "Subject"}</td>
+            <td>${slot.sections?.name || "Section"}</td>
+            <td>${slot.start_time} - ${slot.end_time}</td>
+            <td>${slot.room_number}</td>
+          `;
+          tbody.appendChild(row);
+        });
+
+        // Get today's date
+        const today = new Date();
+        const dayName = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][
+          today.getDay()
+        ];
+
+        const todayClasses = timetable.filter((t) => t.day_of_week === dayName);
+        document.getElementById("classCount").innerText = todayClasses.length;
+        document.getElementById("subjectCount").innerText = new Set(
+          timetable.map((t) => t.subjects?.name)
+        ).size;
+      } catch (err) {
+        console.error("Error loading timetable:", err);
+      }
+    }
+
+    // Count total students
+    async function countTotalStudents() {
+      try {
+        const { data: students } = await client
+          .from("profiles")
+          .select("id", { count: "exact" })
+          .eq("role", "student");
+
+        document.getElementById("studentCount").innerText = students?.length || 0;
+      } catch (err) {
+        console.error("Error counting students:", err);
+      }
+    }
+
+    // Load all students from profiles
+    async function loadAllStudents() {
+      try {
+        const { data: students, error } = await client
+          .from("profiles")
+          .select("id, full_name")
+          .eq("role", "student")
+          .order("full_name");
+
+        if (error) {
+          console.error("Error loading students:", error);
+          return;
+        }
+
+        allStudents = students || [];
+        console.log("✅ Loaded all students:", allStudents.length);
+        updateStudentsList();
+      } catch (err) {
+        console.error("Error loading all students:", err);
+      }
+    }
+
+    // Update students display with attendance status
+    function updateStudentsList() {
+      const container = document.getElementById("allStudentsList");
+      
+      if (!allStudents || allStudents.length === 0) {
+        container.innerHTML = '<p style="color: #999; grid-column: 1/-1;">No students registered yet</p>';
+        return;
       }
 
-      // QR SYSTEM ONLY
-      let qrInterval = null;
+      container.innerHTML = "";
 
-      async function openAttendance() {
-        document.getElementById("attendanceSection").style.display = "block";
-        await loadRealStudents();
-        startQR();
+      allStudents.forEach((student) => {
+        const isMarked = markedStudentIds.has(student.id);
+        const card = document.createElement("div");
+        card.className = `student-card ${isMarked ? "marked" : "not-marked"}`;
+        card.innerHTML = `
+          <span class="student-name">${student.full_name}</span>
+          <span class="student-status ${isMarked ? "marked" : ""}">
+            ${isMarked ? "✅ Marked" : "⏳ Pending"}
+          </span>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    // Load notices
+    async function loadNotices() {
+      try {
+        const { data: notices } = await client
+          .from("notices")
+          .select("*")
+          .or("target_role.eq.all,target_role.eq.teacher")
+          .order("created_at", { ascending: false })
+          .limit(5);
+
+        const noticesList = document.getElementById("noticesList");
+        noticesList.innerHTML = "";
+
+        if (!notices || notices.length === 0) {
+          noticesList.innerHTML = "<p style='color: #999'>No notices available</p>";
+          return;
+        }
+
+        notices.forEach((notice) => {
+          const noticeDiv = document.createElement("div");
+          noticeDiv.className = "alert alert-info";
+          noticeDiv.innerHTML = `
+            <strong>${notice.title}</strong><br>
+            <small>${notice.content}</small>
+          `;
+          noticesList.appendChild(noticeDiv);
+        });
+      } catch (err) {
+        console.error("Error loading notices:", err);
       }
+    }
 
-      function startQR() {
+    // Start QR Generation
+    async function startQR() {
+      try {
         if (qrInterval) return;
+
+        console.log("🚀 Starting QR attendance session...");
+        markedStudentIds.clear();
         qrInterval = setInterval(generateQR, 2000);
+        generateQR(); // Generate first QR immediately
+
+        // Load attendance list
+        loadAttendanceList();
+      } catch (err) {
+        console.error("Error starting QR:", err);
       }
+    }
 
-      async function generateQR() {
-        const token = Math.random().toString(36).substring(2, 8);
+    // Countdown timer
+    function startCountdown() {
+      if (countdownInterval) clearInterval(countdownInterval);
+      let seconds = 8;
+      
+      const updateTimer = () => {
+        document.getElementById("countdownTimer").innerText = `Expires in: ${seconds}s`;
+        seconds--;
+        if (seconds < 0) seconds = 8;
+      };
 
-        await client.from("attendance_sessions").insert([
+      updateTimer();
+      countdownInterval = setInterval(updateTimer, 1000);
+    }
+
+    // Generate new QR code
+    async function generateQR() {
+      try {
+        const token = Math.random().toString(36).substring(2, 8).toUpperCase();
+
+        // Insert attendance session
+        const { data: session, error } = await client.from("attendance_sessions").insert([
           {
             otp_token: token,
             expires_at: new Date(Date.now() + 8000).toISOString(),
@@ -195,23 +425,133 @@
           },
         ]);
 
-        const qrURL = `${window.location.origin}/scan.html?token=${token}`;
-
-        QRCode.toCanvas(document.getElementById("qrCanvas"), qrURL);
-      }
-
-      async function logout() {
-        await client.auth.signOut();
-        window.location.href = "index.html";
-      }
-
-      function toggleSubmenu(element) {
-        const submenu = element.querySelector(".submenu");
-        if (submenu) {
-          submenu.style.display =
-            submenu.style.display === "block" ? "none" : "block";
+        if (error) {
+          console.error("Error creating session:", error);
+          return;
         }
+
+        // Generate QR URL
+        const qrURL = `${window.location.origin}/?token=${token}`;
+
+        // Render QR code
+        const canvas = document.getElementById("qrCanvas");
+        QRCode.toCanvas(canvas, qrURL, (err) => {
+          if (err) console.error("QR generation error:", err);
+        });
+
+        // Update token display
+        document.getElementById("tokenDisplay").innerText = `Token: ${token}`;
+
+        // Start countdown
+        startCountdown();
+      } catch (err) {
+        console.error("QR generation error:", err);
       }
-    </script>
-  </body>
+    }
+
+    // Load attendance list in real-time
+    async function loadAttendanceList() {
+      try {
+        const { data: attendance } = await client
+          .from("attendance")
+          .select("student_id, profiles(full_name)")
+          .order("scanned_at", { ascending: false });
+
+        const studentList = document.getElementById("studentList");
+        studentList.innerHTML = "";
+
+        if (!attendance || attendance.length === 0) {
+          studentList.innerHTML = "<p style='color: #999'>No attendance marked yet</p>";
+          document.getElementById("attendanceCount").innerText = "0";
+          markedStudentIds.clear();
+          updateStudentsList();
+          return;
+        }
+
+        // Update marked students set
+        markedStudentIds.clear();
+        const uniqueStudents = [];
+        const seenIds = new Set();
+
+        attendance.forEach((att) => {
+          markedStudentIds.add(att.student_id);
+          if (!seenIds.has(att.student_id)) {
+            seenIds.add(att.student_id);
+            uniqueStudents.push(att);
+          }
+        });
+
+        document.getElementById("attendanceCount").innerText = uniqueStudents.length;
+
+        // Display attended students
+        uniqueStudents.forEach((att) => {
+          const studentDiv = document.createElement("div");
+          studentDiv.className = "student-item checked";
+          studentDiv.innerHTML = `
+            <span>✅ ${att.profiles?.full_name || "Unknown"}</span>
+            <small style="color: #999">Scanned</small>
+          `;
+          studentList.appendChild(studentDiv);
+        });
+
+        // Update all students list
+        updateStudentsList();
+      } catch (err) {
+        console.error("Error loading attendance:", err);
+      }
+    }
+
+    // Auto-refresh attendance list every 1.5 seconds
+    function autoRefreshAttendance() {
+      setInterval(() => {
+        if (qrInterval) {
+          loadAttendanceList();
+        }
+      }, 1500);
+    }
+
+    // Stop QR Generation
+    function stopQR() {
+      try {
+        if (qrInterval) {
+          clearInterval(qrInterval);
+          qrInterval = null;
+        }
+        if (countdownInterval) {
+          clearInterval(countdownInterval);
+          countdownInterval = null;
+        }
+        console.log("✅ QR attendance session stopped");
+        alert("Attendance session stopped");
+      } catch (err) {
+        console.error("Error stopping QR:", err);
+      }
+    }
+
+    // Show section
+    function showSection(sectionName) {
+      document.querySelectorAll(".section-content").forEach((el) => {
+        el.style.display = "none";
+      });
+      document.getElementById(sectionName + "-section").style.display = "block";
+
+      document.querySelectorAll(".sidebar li").forEach((el) => {
+        el.classList.remove("active");
+      });
+      event.target.classList.add("active");
+    }
+
+    // Logout
+    async function logout() {
+      if (qrInterval) clearInterval(qrInterval);
+      if (countdownInterval) clearInterval(countdownInterval);
+      await client.auth.signOut();
+      window.location.href = "index.html";
+    }
+
+    // Initialize
+    loadTeacherData();
+    autoRefreshAttendance();
+  </script>
+</body>
 </html>

@@ -1,68 +1,89 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Student Dashboard | SUMS</title>
-    <link rel="stylesheet" href="stu_style.css" />
-    <link rel="shortcut icon" href="logo.jpg" type="image/jpg" />
-    <script src="https://unpkg.com/html5-qrcode"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="config.js"></script>
-  </head>
-  <body>
-    <header class="navbar">
-      <div class="logo">
-        <img src="logo.jpg" alt="KRMU" class="logo-img" />
-        <span>K.R. Mangalam University</span>
-      </div>
-      <nav>
-        <a href="#">Dashboard</a>
-        <a href="#">Profile</a>
-        <a href="#" onclick="logout()">Logout</a>
-      </nav>
-    </header>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Student Dashboard - SUMS</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <style>
+    .scan-feedback {
+      padding: 12px 16px;
+      border-radius: 6px;
+      margin: 12px 0;
+      font-weight: 500;
+      display: none;
+      animation: slideDown 0.3s ease-in;
+    }
 
-    <div class="container">
-      <aside class="sidebar">
-        <h3>Menu</h3>
-        <ul>
-          <li class="active">📊 Dashboard</li>
-          <li>📅 Attendance</li>
-          <li>🕐 Timetable</li>
-          <li>💰 Fees</li>
-          <li>📢 Notices &amp; Announcements</li>
-          <li>📆 Academic Calendar</li>
-          <li>👨‍🏫 Mentor-Mentee</li>
-          <li>📝 Complaints / Grievance</li>
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
 
-          <!-- Exam Hub with sub-items -->
-          <li class="menu-parent" onclick="toggleSubmenu(this)">
-            🎓 Exam Hub ▾
-            <ul class="submenu">
-              <li>📄 Admit Card</li>
-              <li>📋 Exam Form</li>
-              <li>📊 Report Card</li>
-            </ul>
-          </li>
-        </ul>
+    .scan-feedback.show {
+      display: block;
+    }
 
-        <!-- Scan QR Button -->
-        <div class="qr-scan-btn" onclick="openScanner()">
-          <div class="qr-icon">
-            <div class="qr-corner tl"></div>
-            <div class="qr-corner tr"></div>
-            <div class="qr-corner bl"></div>
-            <div class="qr-corner br"></div>
-            <span>⬚</span>
-          </div>
-          <p>Scan QR</p>
-        </div>
-      </aside>
+    .scan-feedback.success {
+      background: #d4edda;
+      color: #155724;
+      border-left: 4px solid #28a745;
+    }
 
-      <main class="content">
+    .scan-feedback.error {
+      background: #f8d7da;
+      color: #721c24;
+      border-left: 4px solid #dc3545;
+    }
+
+    .scan-feedback.warning {
+      background: #fff3cd;
+      color: #856404;
+      border-left: 4px solid #ffc107;
+    }
+
+    .scanner-container {
+      background: white;
+      padding: 16px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body class="dashboard">
+  <div class="navbar">
+    <div class="logo">🎓 SUMS - Student Dashboard</div>
+    <nav>
+      <a href="#" onclick="logout()">Logout</a>
+    </nav>
+  </div>
+
+  <div class="dashboard-container">
+    <aside class="sidebar">
+      <h3>Menu</h3>
+      <ul>
+        <li class="active" onclick="showSection('dashboard')">📊 Dashboard</li>
+        <li onclick="showSection('timetable')">📅 Timetable</li>
+        <li onclick="showSection('attendance')">📷 Mark Attendance</li>
+        <li onclick="showSection('notices')">📢 Notices</li>
+      </ul>
+    </aside>
+
+    <div class="content">
+      <!-- Dashboard Section -->
+      <div id="dashboard-section" class="section-content">
         <h1>Welcome, Student 👋</h1>
-        <p class="subtitle">Here's a quick overview of your academic status</p>
+        <p class="subtitle">Here's your academic overview</p>
 
         <div class="cards">
           <div class="card">
@@ -73,139 +94,335 @@
 
           <div class="card">
             <h2>📚 Subjects</h2>
-            <p class="big">6</p>
+            <p class="big" id="subjectCount">0</p>
             <span>Enrolled this semester</span>
           </div>
 
           <div class="card">
             <h2>📢 Notices</h2>
-            <p class="big">3</p>
+            <p class="big" id="noticeCount">0</p>
             <span>Unread notices</span>
           </div>
 
           <div class="card">
-            <h2>💰 Fees</h2>
-            <p class="big green">Paid</p>
-            <span>Semester 4 status</span>
+            <h2>⏰ Next Class</h2>
+            <p class="big" id="nextClass">-</p>
+            <span>Time</span>
           </div>
         </div>
+      </div>
 
-        <div class="section">
-          <h2>📆 Upcoming Exams</h2>
-          <ul id="timetableList">
-            <li>Mathematics – 21 March</li>
-            <li>Computer Science – 25 March</li>
-            <li>Physics – 30 March</li>
-          </ul>
+      <!-- Timetable Section -->
+      <div id="timetable-section" class="section-content" style="display: none">
+        <h1>📅 Your Timetable</h1>
+        <table class="timetable">
+          <thead>
+            <tr>
+              <th>Day</th>
+              <th>Subject</th>
+              <th>Time</th>
+              <th>Room</th>
+            </tr>
+          </thead>
+          <tbody id="timetableBody">
+            <tr>
+              <td colspan="4" style="text-align: center; color: #999">Loading timetable...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Attendance Section -->
+      <div id="attendance-section" class="section-content" style="display: none">
+        <div class="qr-container">
+          <h1>📷 Scan QR to Mark Attendance</h1>
+          <p class="scanner-status">📱 Open your camera and scan the QR code displayed by the teacher</p>
+          
+          <div id="scanFeedback" class="scan-feedback"></div>
+
+          <div class="scanner-container">
+            <div id="qr-reader"></div>
+          </div>
+
+          <p id="scanStatus" style="color: #667eea; font-weight: 600; text-align: center;">Waiting for QR scan...</p>
+
+          <button onclick="startScanner()">▶️ Start Scanner</button>
+          <button onclick="stopScanner()" class="btn-secondary">⏹️ Stop Scanner</button>
         </div>
+      </div>
 
-        <div class="section">
-          <h2>📢 Latest Notices</h2>
-          <ul id="noticesList">
-            <li>Mid-sem exams schedule released</li>
-            <li>Library will remain closed on Sunday</li>
-            <li>Submit assignment by Friday</li>
-          </ul>
+      <!-- Notices Section -->
+      <div id="notices-section" class="section-content" style="display: none">
+        <h1>📢 Latest Notices</h1>
+        <div id="noticesList" style="display: flex; flex-direction: column; gap: 15px">
+          <p style="color: #999">Loading notices...</p>
         </div>
-
-        <div class="section">
-          <h2>👨‍🏫 Mentor Info</h2>
-          <p>
-            <strong>Mentor:</strong> Dr. Sharma &nbsp;|&nbsp;
-            <strong>Next Meeting:</strong> 25 Feb, 2:00 PM
-          </p>
-        </div>
-        <div class="section" id="scannerSection" style="display: none">
-          <h2>📷 Scan QR Code</h2>
-
-          <div id="qr-reader" style="width: 300px"></div>
-
-          <p id="scanStatus">Waiting for scan...</p>
-        </div>
-      </main>
+      </div>
     </div>
+  </div>
 
-    <script>
-      let scanner = null;
+  <script>
+    let scanner = null;
+    let studentProfile = null;
+    let lastScannedSessionId = null;
 
-      async function openScanner() {
-        document.getElementById("scannerSection").style.display = "block";
-
-        if (scanner) {
-          try {
-            await scanner.stop();
-          } catch {}
+    // Load student data on page load
+    async function loadStudentData() {
+      try {
+        const { data: userData } = await client.auth.getUser();
+        if (!userData.user) {
+          window.location.href = "index.html";
+          return;
         }
 
+        // Fetch student profile
+        const { data: profile } = await client
+          .from("profiles")
+          .select("*")
+          .eq("id", userData.user.id)
+          .single();
+
+        studentProfile = profile;
+        console.log("✅ Student profile loaded:", profile);
+
+        // Load timetable
+        loadTimetable(profile.section_id);
+
+        // Load notices
+        loadNotices();
+      } catch (err) {
+        console.error("Error loading student data:", err);
+      }
+    }
+
+    // Load student's timetable
+    async function loadTimetable(sectionId) {
+      try {
+        const { data: timetable } = await client
+          .from("timetable")
+          .select("id, day_of_week, start_time, end_time, room_number, subjects(name)")
+          .eq("section_id", sectionId)
+          .order("day_of_week");
+
+        const tbody = document.getElementById("timetableBody");
+        tbody.innerHTML = "";
+
+        if (!timetable || timetable.length === 0) {
+          tbody.innerHTML =
+            '<tr><td colspan="4" style="text-align: center; color: #999">No timetable available</td></tr>';
+          return;
+        }
+
+        const dayOrder = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+        timetable.sort((a, b) => dayOrder.indexOf(a.day_of_week) - dayOrder.indexOf(b.day_of_week));
+
+        timetable.forEach((slot) => {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${slot.day_of_week}</td>
+            <td>${slot.subjects?.name || "Subject"}</td>
+            <td>${slot.start_time} - ${slot.end_time}</td>
+            <td>${slot.room_number}</td>
+          `;
+          tbody.appendChild(row);
+        });
+
+        document.getElementById("subjectCount").innerText = new Set(
+          timetable.map((t) => t.subjects?.name)
+        ).size;
+      } catch (err) {
+        console.error("Error loading timetable:", err);
+      }
+    }
+
+    // Load notices
+    async function loadNotices() {
+      try {
+        const { data: notices } = await client
+          .from("notices")
+          .select("*")
+          .or("target_role.eq.all,target_role.eq.student")
+          .order("created_at", { ascending: false })
+          .limit(5);
+
+        const noticesList = document.getElementById("noticesList");
+        noticesList.innerHTML = "";
+
+        if (!notices || notices.length === 0) {
+          noticesList.innerHTML = "<p style='color: #999'>No notices available</p>";
+          document.getElementById("noticeCount").innerText = "0";
+          return;
+        }
+
+        document.getElementById("noticeCount").innerText = notices.length;
+
+        notices.forEach((notice) => {
+          const noticeDiv = document.createElement("div");
+          noticeDiv.className = "alert alert-info";
+          noticeDiv.innerHTML = `
+            <strong>${notice.title}</strong><br>
+            <small>${notice.content}</small>
+          `;
+          noticesList.appendChild(noticeDiv);
+        });
+      } catch (err) {
+        console.error("Error loading notices:", err);
+      }
+    }
+
+    // Show feedback message
+    function showFeedback(message, type) {
+      const feedback = document.getElementById("scanFeedback");
+      feedback.textContent = message;
+      feedback.className = `scan-feedback show ${type}`;
+      
+      setTimeout(() => {
+        feedback.classList.remove("show");
+      }, 4000);
+    }
+
+    // Start QR Scanner
+    async function startScanner() {
+      try {
+        if (scanner) await scanner.stop();
         scanner = new Html5Qrcode("qr-reader");
 
-        try {
-          await scanner.start(
-            { facingMode: "environment" },
-            { fps: 10, qrbox: 250 },
-            async (decodedText) => {
-              await handleScan(decodedText);
-              await scanner.stop();
-            },
-          );
-        } catch {
-          alert("Camera failed");
-        }
-      }
+        document.getElementById("scanStatus").innerText = "📱 Scanning... Point at QR code";
 
-      async function handleScan(url) {
-        try {
-          const urlObj = new URL(url);
-          const token = urlObj.searchParams.get("token");
-
-          if (!token) {
-            alert("Invalid QR Code: No token found.");
-            return;
+        await scanner.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: 250 },
+          async (decodedText) => {
+            await handleScan(decodedText);
+            await scanner.stop();
+            scanner = null;
           }
+        );
+      } catch (err) {
+        console.error("Scanner error:", err);
+        showFeedback("❌ Camera access denied. Please allow camera permissions.", "error");
+        document.getElementById("scanStatus").innerText = "Camera failed - check permissions";
+      }
+    }
 
-          // 1. Find the session
-          const { data: session, error: sError } = await client
-            .from("attendance_sessions")
-            .select("*")
-            .eq("otp_token", token)
-            .maybeSingle();
-
-          if (!session) {
-            alert("QR Code expired or invalid.");
-            return;
-          }
-
-          // 2. Mark attendance
-          const { data: userData } = await client.auth.getUser();
-          const { error: aError } = await client.from("attendance").insert([
-            {
-              student_id: userData.user.id,
-              session_id: session.id,
-              status: true,
-              scanned_at: new Date().toISOString(),
-            },
-          ]);
-
-          if (aError) throw aError;
-          alert("✅ Attendance Marked Successfully!");
-        } catch (err) {
-          console.error(err);
-          alert("Scan Error: " + err.message);
+    // Stop QR Scanner
+    async function stopScanner() {
+      try {
+        if (scanner) {
+          await scanner.stop();
+          scanner = null;
+          document.getElementById("scanStatus").innerText = "⏹️ Scanner stopped";
+          showFeedback("Scanner stopped", "warning");
         }
+      } catch (err) {
+        console.error("Error stopping scanner:", err);
       }
+    }
 
-      async function logout() {
-        await client.auth.signOut();
-        window.location.href = "index.html";
-      }
+    // Handle QR Scan
+    async function handleScan(url) {
+      try {
+        const urlObj = new URL(url);
+        const token = urlObj.searchParams.get("token");
 
-      function toggleSubmenu(element) {
-        const submenu = element.querySelector(".submenu");
-        if (submenu) {
-          submenu.style.display =
-            submenu.style.display === "block" ? "none" : "block";
+        if (!token) {
+          showFeedback("❌ Invalid QR Code - no token found", "error");
+          document.getElementById("scanStatus").innerText = "Invalid QR Code";
+          return;
         }
+
+        console.log("📍 QR Token scanned:", token);
+        document.getElementById("scanStatus").innerText = "⏳ Processing attendance...";
+
+        // Find session by token
+        const { data: session, error: sessionError } = await client
+          .from("attendance_sessions")
+          .select("*")
+          .eq("otp_token", token)
+          .maybeSingle();
+
+        if (sessionError) {
+          showFeedback("❌ Error checking QR code validity", "error");
+          document.getElementById("scanStatus").innerText = "Error: " + sessionError.message;
+          return;
+        }
+
+        if (!session) {
+          showFeedback("⏰ QR Code expired - ask teacher to show a new one", "warning");
+          document.getElementById("scanStatus").innerText = "QR Code expired (8 second validity)";
+          return;
+        }
+
+        if (!session.is_active) {
+          showFeedback("❌ This QR session is no longer active", "error");
+          document.getElementById("scanStatus").innerText = "QR session inactive";
+          return;
+        }
+
+        // Check if already marked for this session
+        if (lastScannedSessionId === session.id) {
+          showFeedback("⚠️ Already marked attendance for this QR code", "warning");
+          document.getElementById("scanStatus").innerText = "Already marked - wait for new QR";
+          return;
+        }
+
+        // Mark attendance
+        const { data: userData } = await client.auth.getUser();
+        const { error: aError } = await client.from("attendance").insert([
+          {
+            student_id: userData.user.id,
+            session_id: session.id,
+            status: true,
+            scanned_at: new Date().toISOString(),
+          },
+        ]);
+
+        if (aError) {
+          showFeedback("❌ Failed to mark attendance: " + aError.message, "error");
+          document.getElementById("scanStatus").innerText = "Error: " + aError.message;
+          return;
+        }
+
+        lastScannedSessionId = session.id;
+        showFeedback("✅ Attendance marked successfully!", "success");
+        document.getElementById("scanStatus").innerText = "✅ Attendance confirmed! Wait for next QR...";
+
+        setTimeout(() => {
+          document.getElementById("scanStatus").innerText = "Waiting for QR scan...";
+        }, 3000);
+      } catch (err) {
+        console.error("Scan error:", err);
+        showFeedback("❌ Error: " + err.message, "error");
+        document.getElementById("scanStatus").innerText = "Error: " + err.message;
       }
-    </script>
-  </body>
+    }
+
+    // Show section
+    function showSection(sectionName) {
+      document.querySelectorAll(".section-content").forEach((el) => {
+        el.style.display = "none";
+      });
+      document.getElementById(sectionName + "-section").style.display = "block";
+
+      document.querySelectorAll(".sidebar li").forEach((el) => {
+        el.classList.remove("active");
+      });
+      event.target.classList.add("active");
+    }
+
+    // Logout
+    async function logout() {
+      if (scanner) {
+        try {
+          await scanner.stop();
+        } catch (e) {}
+      }
+      await client.auth.signOut();
+      window.location.href = "index.html";
+    }
+
+    // Initialize
+    loadStudentData();
+  </script>
+</body>
 </html>
