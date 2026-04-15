@@ -142,16 +142,32 @@
       async function loadRealStudents() {
         const container = document.getElementById("studentList");
 
-        const { data } = await client
-          .from("profiles")
-          .select("id, full_name")
-          .eq("role", "student");
+        try {
+          const { data, error } = await client
+            .from("profiles")
+            .select("id, full_name")
+            .eq("role", "student");
 
-        container.innerHTML = "";
+          if (error) {
+            console.error("Error loading students:", error);
+            container.innerHTML = `<p style="color: red;">Error loading students</p>`;
+            return;
+          }
 
-        data.forEach((s) => {
-          container.innerHTML += `<div>${s.full_name}</div>`;
-        });
+          if (!data || data.length === 0) {
+            container.innerHTML = `<p>No students registered yet</p>`;
+            return;
+          }
+
+          container.innerHTML = "";
+
+          data.forEach((s) => {
+            container.innerHTML += `<div>${s.full_name}</div>`;
+          });
+        } catch (err) {
+          console.error("Exception in loadRealStudents:", err);
+          container.innerHTML = `<p style="color: red;">Error loading students: ${err.message}</p>`;
+        }
       }
 
       // QR SYSTEM ONLY
