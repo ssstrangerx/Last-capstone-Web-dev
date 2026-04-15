@@ -155,37 +155,42 @@
 
       async function handleScan(url) {
         try {
-          const token = new URL(url).searchParams.get("token");
+          const urlObj = new URL(url);
+          const token = urlObj.searchParams.get("token");
 
-          if (!token) return;
+          if (!token) {
+            alert("Invalid QR Code: No token found.");
+            return;
+          }
 
-          // GET SESSION (NO ERRORS SHOWN)
-          const { data: session } = await client
+          // 1. Find the session
+          const { data: session, error: sError } = await client
             .from("attendance_sessions")
             .select("*")
             .eq("otp_token", token)
             .maybeSingle();
 
-          if (!session) return;
+          if (!session) {
+            alert("QR Code expired or invalid.");
+            return;
+          }
 
-          // GET USER
+          // 2. Mark attendance
           const { data: userData } = await client.auth.getUser();
-          const user = userData.user;
-          if (!user) return;
-
-          // INSERT ATTENDANCE (NO DUP CHECK, NO WARNINGS)
-          await client.from("attendance").insert([
+          const { error: aError } = await client.from("attendance").insert([
             {
-              student_id: user.id,
+              student_id: userData.user.id,
               session_id: session.id,
               status: true,
               scanned_at: new Date().toISOString(),
             },
           ]);
 
-          alert("Attendance Marked");
-        } catch {
-          // SILENT FAIL (no annoying errors)
+          if (aError) throw aError;
+          alert("✅ Attendance Marked Successfully!");
+        } catch (err) {
+          console.error(err);
+          alert("Scan Error: " + err.message);
         }
       }
     </script>

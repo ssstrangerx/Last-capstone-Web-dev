@@ -45,8 +45,8 @@
         <option value="Professor">Professor</option>
         <option value="Assistant Professor">Assistant Professor</option>
         <option value="Lecturer">Lecturer</option>
-        <option value="Dean">Dean</option>
-      </select><br /><br />
+        <option value="Dean">Dean</option></select
+      ><br /><br />
 
       <input type="submit" value="Register Faculty" />
     </form>
@@ -95,21 +95,19 @@
           }
 
           // ⏳ WAIT longer to avoid FK error (Supabase needs time to commit)
-          await new Promise((resolve) => setTimeout(resolve, 1500));
+          await new Promise((resolve) => setTimeout(resolve, 1000));
 
-          // STEP 2: INSERT PROFILE (use insert, not upsert)
-          const { error: profileError } = await client
-            .from("profiles")
-            .insert([
-              {
-                id: data.user.id,
-                email,
-                full_name: fullName,
-                role: "teacher",
-                employee_id: employeeId,
-                designation,
-              },
-            ]);
+          // This replaces the STEP 2: INSERT PROFILE block in your forms
+          const { error: profileError } = await client.from("profiles").insert([
+            {
+              id: data.user.id,
+              email: email,
+              full_name: fullName,
+              role: "teacher", // or "student" for form.html
+              employee_id: employeeId, // only for teacher
+              designation: designation, // only for teacher
+            },
+          ]);
 
           if (profileError) {
             console.error("❌ Insert Error:", profileError);
@@ -119,7 +117,7 @@
 
           console.log("✅ Teacher profile inserted");
           alert("✅ Teacher Registered Successfully! Redirecting to login...");
-          
+
           // Redirect to login after 2 seconds
           setTimeout(() => {
             window.location.href = "index.html";

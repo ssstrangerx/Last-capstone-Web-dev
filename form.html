@@ -98,7 +98,7 @@
           }
 
           // ⏳ WAIT longer to avoid FK error (Supabase needs time to commit)
-          await new Promise((resolve) => setTimeout(resolve, 1500));
+          await new Promise((resolve) => setTimeout(resolve, 1000));
 
           // STEP 2: INSERT PROFILE (use insert, not upsert)
           const { error: profileError } = await client.from("profiles").insert([
