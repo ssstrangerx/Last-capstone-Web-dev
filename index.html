@@ -3,65 +3,44 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SUMS</title>
-    <link rel="stylesheet" href="login_style.css" />
+    <title>SUMS - Login</title>
+    <link rel="stylesheet" href="styles.css" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
-    <link rel="shortcut icon" href="logo.jpg" type="image/jpg" />
   </head>
   <body>
-    <center>
-      <h1
-        style="
-          font-family: Verdana, Geneva, Tahoma, sans-serif;
-          font-size: 40px;
-        "
-      >
-        Smart University Management System
-      </h1>
-    </center>
-    <form id="loginForm">
-      <center>
-        <h2
-          style="
-            font-family:
-              &quot;Franklin Gothic Medium&quot;, &quot;Arial Narrow&quot;,
-              Arial, sans-serif;
-            font-size: 40px;
-          "
-        >
-          Login
-        </h2>
-      </center>
-      <label for="email">Email ID:</label><br />
-      <input type="email" id="email" name="email" required /><br /><br />
+    <div class="container">
+      <h1>🎓 SUMS</h1>
+      <h2>Smart University Management System</h2>
 
-      <label for="password">Password:</label><br />
-      <input
-        type="password"
-        id="password"
-        name="password"
-        required
-      /><br /><br />
-      <!-- choose whether teacher or student -->
-      <p class="role-title"><b>Login As:</b></p>
+      <form id="loginForm">
+        <label for="email">Email ID:</label>
+        <input type="email" id="email" required />
 
-      <div class="role-group">
-        <label class="role-option">
-          <input type="radio" name="role" value="student" required />Student
-        </label>
-        <label class="role-option">
-          <input type="radio" name="role" value="teacher" required />Teacher
-        </label>
-      </div>
-      <input type="submit" value="Submit" />
-      <p style="text-align: center; margin-top: 10px">Don't have an account?</p>
+        <label for="password">Password:</label>
+        <input type="password" id="password" required />
 
-      <div style="text-align: center">
+        <label>Login As:</label>
+        <div class="role-group">
+          <label class="role-option">
+            <input type="radio" name="role" value="student" required />
+            Student
+          </label>
+          <label class="role-option">
+            <input type="radio" name="role" value="teacher" required />
+            Teacher
+          </label>
+        </div>
+
+        <input type="submit" value="Login" />
+      </form>
+
+      <div class="links">
+        <p>Don't have an account?</p>
         <a href="form.html">Register as Student</a> |
         <a href="teacher_form.html">Register as Teacher</a>
       </div>
-    </form>
+    </div>
 
     <script>
       document
@@ -78,6 +57,8 @@
 
             console.log("🔐 Login attempt:", { email, selectedRole });
 
+            // STEP 1: Sign in
+            console.log("📝 Signing in with email/password...");
             const { data, error } = await client.auth.signInWithPassword({
               email,
               password,
@@ -85,57 +66,72 @@
 
             if (error) {
               console.error("❌ Auth Error:", error);
-              alert("Login failed: Check your email/password");
+              alert("Login failed: " + error.message);
               return;
             }
 
-            console.log("✅ Auth success, user ID:", data.user.id);
+            console.log("✅ Auth successful");
 
-            // 1. FETCH PROFILE
-            const { data: profile, error: profileError } = await client
+            // STEP 2: Extract user ID from auth response (DON'T call getUser())
+            if (!data.user || !data.user.id) {
+              console.error("❌ No user in auth response");
+              alert("Auth failed: No user data");
+              return;
+            }
+
+            const userId = data.user.id;
+            console.log("✅ User ID:", userId);
+
+            // STEP 3: Wait a moment for profile to be accessible
+            console.log("⏳ Waiting 2 seconds before profile query...");
+            await new Promise((resolve) => setTimeout(resolve, 2000));
+
+            // STEP 4: Query profile using the user ID from auth response
+            console.log("🔎 Querying profile for user ID:", userId);
+            const { data: profile, error: queryError } = await client
               .from("profiles")
               .select("*")
-              .eq("id", data.user.id)
+              .eq("id", userId)
               .maybeSingle();
 
-            console.log("Profile fetch result:", { profile, profileError });
+            console.log("Query result:", { profile, queryError });
 
-            // 2. THE CHECK
+            if (queryError) {
+              console.error("❌ Query Error:", queryError);
+              alert("Error fetching profile: " + queryError.message);
+              return;
+            }
+
             if (!profile) {
-              console.error("No profile found for user:", data.user.id);
+              console.error("❌ Profile not found for user:", userId);
+              alert("Profile not found! Please register first.");
+              return;
+            }
+
+            console.log("✅ Profile found:", profile.full_name);
+            console.log("Profile role:", profile.role);
+
+            // STEP 5: Verify role
+            if (profile.role !== selectedRole) {
+              console.warn("⚠️ Role mismatch");
               alert(
-                "Auth account exists, but no profile found! Please re-register or contact admin.",
+                `You are registered as ${profile.role}, not ${selectedRole}`,
               );
               return;
             }
 
-            console.log("✅ Profile found:", profile.role);
+            console.log("✅ Role verified");
 
-            // 3. MATCH ROLE TO RADIO BUTTON
-            if (profile.role.toLowerCase() !== selectedRole.toLowerCase()) {
-              console.warn("Role mismatch:", {
-                profileRole: profile.role,
-                selectedRole,
-              });
-              alert(
-                `Access Denied: You are registered as a ${profile.role}, but tried to login as a ${selectedRole}.`,
-              );
-              return;
-            }
-
-            console.log("✅ Role match successful");
-
-            // 4. REDIRECT
+            // STEP 6: Redirect
+            console.log("🚀 Redirecting to dashboard...");
             if (profile.role === "student") {
-              console.log("→ Redirecting to Students.html");
               window.location.href = "Students.html";
             } else if (profile.role === "teacher") {
-              console.log("→ Redirecting to teacher.html");
               window.location.href = "teacher.html";
             }
           } catch (err) {
-            console.error("❌ Unexpected login error:", err);
-            alert("Login error: " + err.message);
+            console.error("❌ Unexpected error:", err);
+            alert("Error: " + err.message);
           }
         });
     </script>

@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Teacher Dashboard - SUMS</title>
     <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
   </head>
   <body class="dashboard">
     <div class="navbar">
@@ -143,6 +143,7 @@
 
     <script>
       let qrInterval = null;
+      let refreshInterval = null;
       let teacherProfile = null;
       let currentSession = null;
 
@@ -295,6 +296,28 @@
         }
       }
 
+      // Load all students from profiles
+      async function loadAllStudents() {
+        try {
+          const { data: students, error } = await client
+            .from("profiles")
+            .select("id, full_name, email")
+            .eq("role", "student")
+            .ilike("email", "%@student.com%")
+            .order("full_name");
+
+          if (error) {
+            console.error("Error loading students:", error);
+            return [];
+          }
+
+          return students || [];
+        } catch (err) {
+          console.error("Error in loadAllStudents:", err);
+          return [];
+        }
+      }
+
       // Start QR Generation
       async function startQR() {
         try {
@@ -306,6 +329,10 @@
 
           // Load students who attended
           loadAttendanceList();
+
+          // Auto-refresh attendance list every 1.5 seconds
+          if (refreshInterval) clearInterval(refreshInterval);
+          refreshInterval = setInterval(loadAttendanceList, 1500);
         } catch (err) {
           console.error("Error starting QR:", err);
         }
@@ -351,46 +378,50 @@
         }
       }
 
-      // Load attendance list
+      // Load attendance list with all students
       async function loadAttendanceList() {
         try {
+          // Get all students
+          const allStudents = await loadAllStudents();
+
+          // Get attendance records
           const { data: attendance } = await client
             .from("attendance")
-            .select("student_id, profiles(full_name)")
+            .select("student_id")
             .order("scanned_at", { ascending: false });
+
+          const markedStudentIds = new Set();
+          if (attendance) {
+            attendance.forEach((att) => {
+              markedStudentIds.add(att.student_id);
+            });
+          }
 
           const studentList = document.getElementById("studentList");
           studentList.innerHTML = "";
 
-          if (!attendance || attendance.length === 0) {
+          if (!allStudents || allStudents.length === 0) {
             studentList.innerHTML =
-              "<p style='color: #999'>No attendance marked yet</p>";
+              "<p style='color: #999'>No students registered</p>";
             document.getElementById("attendanceCount").innerText = "0";
             return;
           }
 
-          const uniqueStudents = [];
-          const seenIds = new Set();
+          let attendedCount = 0;
+          allStudents.forEach((student) => {
+            const isMarked = markedStudentIds.has(student.id);
+            if (isMarked) attendedCount++;
 
-          attendance.forEach((att) => {
-            if (!seenIds.has(att.student_id)) {
-              seenIds.add(att.student_id);
-              uniqueStudents.push(att);
-            }
-          });
-
-          document.getElementById("attendanceCount").innerText =
-            uniqueStudents.length;
-
-          uniqueStudents.forEach((att) => {
             const studentDiv = document.createElement("div");
-            studentDiv.className = "student-item checked";
+            studentDiv.className = `student-item ${isMarked ? "checked" : ""}`;
             studentDiv.innerHTML = `
-            <span>✅ ${att.profiles?.full_name || "Unknown"}</span>
-            <small style="color: #999">Scanned</small>
+            <span>${isMarked ? "✅" : "⏳"} ${student.full_name}</span>
+            <small style="color: #999">${isMarked ? "Scanned" : "Pending"}</small>
           `;
             studentList.appendChild(studentDiv);
           });
+
+          document.getElementById("attendanceCount").innerText = attendedCount;
         } catch (err) {
           console.error("Error loading attendance:", err);
         }
@@ -402,9 +433,13 @@
           if (qrInterval) {
             clearInterval(qrInterval);
             qrInterval = null;
-            console.log("✅ QR attendance session stopped");
-            alert("Attendance session stopped");
           }
+          if (refreshInterval) {
+            clearInterval(refreshInterval);
+            refreshInterval = null;
+          }
+          console.log("✅ QR attendance session stopped");
+          alert("Attendance session stopped");
         } catch (err) {
           console.error("Error stopping QR:", err);
         }
@@ -427,6 +462,7 @@
       // Logout
       async function logout() {
         if (qrInterval) clearInterval(qrInterval);
+        if (refreshInterval) clearInterval(refreshInterval);
         await client.auth.signOut();
         window.location.href = "index.html";
       }
